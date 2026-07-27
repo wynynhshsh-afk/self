@@ -167,11 +167,13 @@ def miniapp_auth():
     session["owner_id"] = account["id"]
 
     display_name = result["user"].get("first_name") or account.get("username") or "کاربر"
+    photo_url = result["user"].get("photo_url") or ""
     return jsonify({
         "ok": True,
         "account_id": account["id"],
         "username": account.get("username"),
         "display_name": display_name,
+        "photo_url": photo_url,
         "is_owner": tg_id == getattr(config, "OWNER_TG_ID", None),
     })
 
@@ -617,6 +619,36 @@ def clear_friends_api():
 @login_required
 def deleted_messages():
     return jsonify(db.get_deleted_messages(owner_id(), 50))
+
+
+# ─── API سایلنت (چت/کاربر) ─────────────────────────────────────────────────
+@app.route("/api/silent/chat/<int:chat_id>", methods=["POST"])
+@login_required
+def add_silent_chat_api(chat_id):
+    db.add_silent_chat(owner_id(), chat_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/silent/chat/<int:chat_id>", methods=["DELETE"])
+@login_required
+def remove_silent_chat_api(chat_id):
+    db.remove_silent_chat(owner_id(), chat_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/silent/user/<int:user_id>", methods=["POST"])
+@login_required
+def add_silent_user_api(user_id):
+    db.add_silent_user(owner_id(), user_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/silent/user/<int:user_id>", methods=["DELETE"])
+@login_required
+def remove_silent_user_api(user_id):
+    db.remove_silent_user(owner_id(), user_id)
+    return jsonify({"ok": True})
+
 
 
 @app.route("/api/bot_status", methods=["GET"])

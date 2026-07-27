@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>پنل مدیریت سلف — NexoSelf</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="/static/js/emoji.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     :root {
@@ -75,7 +76,9 @@
         background: linear-gradient(135deg, var(--accent), var(--accent2));
         display: flex; align-items: center; justify-content: center;
         font-weight: 800; font-size: 17px; color: #fff; flex-shrink: 0;
+        overflow: hidden;
     }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .topbar .name { font-weight: 700; font-size: 15px; }
     .topbar .sub { font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 5px; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
@@ -126,11 +129,11 @@
         border-radius: 30px; transition: .2s;
     }
     .tgl-s::before {
-        content: ""; position: absolute; height: 19px; width: 19px; left: 3px; bottom: 3px;
+        content: ""; position: absolute; height: 19px; width: 19px; right: 3px; bottom: 3px;
         background: #fff; border-radius: 50%; transition: .2s;
     }
     .tgl input:checked + .tgl-s { background: var(--accent); }
-    .tgl input:checked + .tgl-s::before { transform: translateX(-19px); }
+    .tgl input:checked + .tgl-s::before { right: auto; left: 3px; }
 
     /* form fields */
     .field { margin-bottom: 12px; }
@@ -205,7 +208,7 @@
 
 <div id="app">
     <div class="topbar">
-        <div class="avatar" id="avatarLetter">?</div>
+        <div class="avatar" id="avatarBox"><span id="avatarLetter">?</span></div>
         <div style="flex:1;">
             <div class="name" id="userName">—</div>
             <div class="sub"><span class="dot off" id="statusDot"></span><span id="statusLabel">در حال بررسی...</span></div>
@@ -229,7 +232,11 @@
                     <div class="stat-box"><div class="val" id="stTokens">-</div><div class="lbl">الماس</div></div>
                     <div class="stat-box"><div class="val" id="stRefs">-</div><div class="lbl">دعوت‌شده</div></div>
                 </div>
-                <button class="btn btn-green btn-block" style="margin-top:12px;" onclick="claimDaily()">🎁 دریافت هدیه روزانه</button>
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button class="btn btn-green" style="flex:1;" onclick="claimDaily()">🎁 هدیه روزانه</button>
+                    <button class="btn btn-outline" style="flex:1;" onclick="copyReferral()">🔗 کپی لینک رفرال</button>
+                </div>
+                <button class="btn btn-accent btn-block" style="margin-top:8px;" onclick="buyTokens()">🛒 خرید توکن</button>
                 <div class="hint" id="refHint"></div>
             </div>
 
@@ -275,8 +282,18 @@
                 <div class="toggle-row"><span class="label">📝 ساعت در بیو</span>
                     <label class="tgl"><input type="checkbox" data-key="clock_bio_active" onchange="toggleFeature(this)"><span class="tgl-s"></span></label></div>
                 <div class="field" style="margin-top:12px;">
-                    <label>فونت ساعت</label>
-                    <input type="text" id="f_selected_font" placeholder="مثال: normal">
+                    <label>فونت پیام‌ها و ساعت</label>
+                    <select id="f_selected_font">
+                        <option value="0">۰ — متن عادی</option>
+                        <option value="1">۱ — Bold Sans</option>
+                        <option value="2">۲ — Italic Sans</option>
+                        <option value="3">۳ — Monospace</option>
+                        <option value="4">۴ — Fullwidth</option>
+                        <option value="5">۵ — Serif Bold</option>
+                        <option value="6">۶ — Script</option>
+                        <option value="7">۷ — Strikethrough</option>
+                        <option value="8">۸ — Underline</option>
+                    </select>
                 </div>
             </div>
 
@@ -295,6 +312,87 @@
                     <input type="number" id="f_spam_delay" min="0" placeholder="مثال: 2">
                 </div>
                 <button class="btn btn-accent btn-block" onclick="saveSettings()">💾 ذخیره تنظیمات</button>
+            </div>
+        </div>
+
+        <!-- ── تب ابزار ──────────────────────────────────────────────── -->
+        <div class="tab-panel" id="tab-tools">
+            <div class="card">
+                <h3>🔧 ابزارها</h3>
+                <div class="field">
+                    <label>🌐 ترجمه</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="toolTranslate" placeholder="ترجمه [متن]" style="flex:1;">
+                        <button class="btn btn-accent" onclick="runTool('translate')">اجرا</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>⛅ آب‌وهوا</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="toolWeather" placeholder="هوا [شهر]" style="flex:1;">
+                        <button class="btn btn-accent" onclick="runTool('weather')">اجرا</button>
+                    </div>
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                    <label>💰 قیمت ارز</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="toolCurrency" placeholder="ارز [دلار/تتر/یورو/پوند/بیت‌کوین]" style="flex:1;">
+                        <button class="btn btn-accent" onclick="runTool('currency')">اجرا</button>
+                    </div>
+                </div>
+                <div class="hint">⚠️ این ابزارها داخل چت تلگرام با ربات سلف اجرا می‌شن.</div>
+            </div>
+
+            <div class="card">
+                <h3>💣 اسپم</h3>
+                <div class="field">
+                    <label>تعداد پیام</label>
+                    <input type="number" id="spamCount" value="5" min="1" max="50">
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                    <label>متن پیام</label>
+                    <input type="text" id="spamText" placeholder="متن پیام">
+                </div>
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button class="btn btn-red" style="flex:1;" onclick="startSpam()">✈️ ارسال</button>
+                    <button class="btn btn-outline" style="flex:1;" onclick="stopSpam()">⏹ توقف</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📥 سیو مدیا</h3>
+                <div class="field">
+                    <label>یوزرنیم یا لینک کانال</label>
+                    <input type="text" id="saveChannel" placeholder="@یوزرنیم یا لینک پست">
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                    <label>تعداد</label>
+                    <input type="number" id="saveCount" value="50" min="1" max="500">
+                </div>
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <button class="btn btn-accent" style="flex:1;" onclick="startSave()">📥 شروع</button>
+                    <button class="btn btn-outline" style="flex:1;" onclick="stopSave()">⏹ توقف</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🔇 سایلنت</h3>
+                <div class="field">
+                    <label>آیدی چت</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="silentChatId" placeholder="آیدی چت" inputmode="numeric" style="flex:1;">
+                        <button class="btn btn-accent" onclick="addSilentChat()">🔇</button>
+                        <button class="btn btn-outline" onclick="removeSilentChat()">🔔</button>
+                    </div>
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                    <label>آیدی کاربر</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="silentUserId" placeholder="آیدی کاربر" inputmode="numeric" style="flex:1;">
+                        <button class="btn btn-accent" onclick="addSilentUser()">🔇</button>
+                        <button class="btn btn-outline" onclick="removeSilentUser()">🔔</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -327,6 +425,7 @@
     <div class="bottomnav">
         <button class="nav-btn active" data-tab="home" onclick="switchTab('home')"><span class="ic">🏠</span>خانه</button>
         <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')"><span class="ic">⚙️</span>تنظیمات</button>
+        <button class="nav-btn" data-tab="tools" onclick="switchTab('tools')"><span class="ic">🔧</span>ابزار</button>
         <button class="nav-btn" data-tab="lists" onclick="switchTab('lists')"><span class="ic">👥</span>لیست‌ها</button>
         <button class="nav-btn" data-tab="deleted" onclick="switchTab('deleted')"><span class="ic">🗑</span>حذف‌شده‌ها</button>
     </div>
@@ -402,7 +501,14 @@ async function init() {
 
     const displayName = data.display_name || data.username || 'کاربر';
     document.getElementById('userName').textContent = displayName;
-    document.getElementById('avatarLetter').textContent = displayName.charAt(0).toUpperCase();
+
+    const photoUrl = data.photo_url || (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.photo_url) || '';
+    const avatarBox = document.getElementById('avatarBox');
+    if (photoUrl) {
+        avatarBox.innerHTML = `<img src="${photoUrl}" alt="">`;
+    } else {
+        avatarBox.innerHTML = `<span id="avatarLetter">${displayName.charAt(0).toUpperCase()}</span>`;
+    }
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -424,6 +530,7 @@ function switchTab(name) {
 async function loadOverview() {
     const { data } = await api('/api/miniapp/overview');
     if (!data.ok) return;
+    overviewData = data;
 
     updateStatusUI(data.running);
 
@@ -479,6 +586,28 @@ async function claimDaily() {
     const { data } = await api('/api/tokens/daily', { method: 'POST' });
     toast(data.message || (data.ok ? 'دریافت شد!' : 'خطا'));
     if (data.ok) loadOverview();
+}
+
+let overviewData = {};
+
+function copyReferral() {
+    haptic('light');
+    const link = overviewData.ref_link || '';
+    if (!link) { toast('ربات توکن تنظیم نشده'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => toast('🔗 لینک رفرال کپی شد!')).catch(() => toast(link));
+    } else {
+        toast(link);
+    }
+}
+
+function buyTokens() {
+    haptic('light');
+    const username = overviewData.bot_username || '';
+    if (!username) { toast('ربات توکن تنظیم نشده'); return; }
+    const url = 'https://t.me/' + username + '?start=buy';
+    if (tg && tg.openTelegramLink) tg.openTelegramLink(url);
+    else window.open(url, '_blank');
 }
 
 // ── تنظیمات ────────────────────────────────────────────────────────────────
@@ -572,6 +701,83 @@ async function clearList() {
     await api('/api/' + currentListType + '/clear', { method: 'POST' });
     loadList(currentListType);
     toast('✅ لیست پاک شد');
+}
+
+// ── ابزارها ───────────────────────────────────────────────────────────────
+function runTool(type) {
+    haptic('light');
+    if (type === 'translate') {
+        const text = document.getElementById('toolTranslate').value.trim();
+        if (!text) { toast('متن را وارد کنید'); return; }
+        toast('🌐 ترجمه در تلگرام اجرا می‌شود');
+    } else if (type === 'weather') {
+        const city = document.getElementById('toolWeather').value.trim();
+        if (!city) { toast('شهر را وارد کنید'); return; }
+        toast('⛅ هوا در تلگرام اجرا می‌شود');
+    } else if (type === 'currency') {
+        toast('💰 قیمت ارز در تلگرام اجرا می‌شود');
+    }
+}
+
+// ── اسپم ──────────────────────────────────────────────────────────────────
+function startSpam() {
+    haptic('medium');
+    const count = document.getElementById('spamCount').value || 5;
+    const text = document.getElementById('spamText').value.trim();
+    if (!text) { toast('متن پیام را وارد کنید'); return; }
+    toast('💣 ارسال ' + count + ' پیام اسپم — در تلگرام اجرا می‌شود');
+}
+
+function stopSpam() {
+    haptic('light');
+    toast('⏹ توقف اسپم — در تلگرام اجرا می‌شود');
+}
+
+// ── سیو مدیا ──────────────────────────────────────────────────────────────
+function startSave() {
+    haptic('medium');
+    const channel = document.getElementById('saveChannel').value.trim();
+    const count = document.getElementById('saveCount').value || 50;
+    if (!channel) { toast('یوزرنیم یا لینک کانال را وارد کنید'); return; }
+    toast('📥 سیو مدیا از ' + channel + ' (' + count + ' عدد) — در تلگرام اجرا می‌شود');
+}
+
+function stopSave() {
+    haptic('light');
+    toast('⏹ توقف سیو — در تلگرام اجرا می‌شود');
+}
+
+// ── سایلنت ────────────────────────────────────────────────────────────────
+async function addSilentChat() {
+    const id = document.getElementById('silentChatId').value.trim();
+    if (!id) { toast('آیدی چت را وارد کنید'); return; }
+    haptic('light');
+    const { data } = await api('/api/silent/chat/' + id, { method: 'POST' });
+    toast(data.ok ? '🔇 چت سایلنت شد' : (data.error || 'خطا'));
+}
+
+async function removeSilentChat() {
+    const id = document.getElementById('silentChatId').value.trim();
+    if (!id) { toast('آیدی چت را وارد کنید'); return; }
+    haptic('light');
+    const { data } = await api('/api/silent/chat/' + id, { method: 'DELETE' });
+    toast(data.ok ? '🔔 سایلنت چت برداشته شد' : (data.error || 'خطا'));
+}
+
+async function addSilentUser() {
+    const id = document.getElementById('silentUserId').value.trim();
+    if (!id) { toast('آیدی کاربر را وارد کنید'); return; }
+    haptic('light');
+    const { data } = await api('/api/silent/user/' + id, { method: 'POST' });
+    toast(data.ok ? '🔇 کاربر سایلنت شد' : (data.error || 'خطا'));
+}
+
+async function removeSilentUser() {
+    const id = document.getElementById('silentUserId').value.trim();
+    if (!id) { toast('آیدی کاربر را وارد کنید'); return; }
+    haptic('light');
+    const { data } = await api('/api/silent/user/' + id, { method: 'DELETE' });
+    toast(data.ok ? '🔔 سایلنت کاربر برداشته شد' : (data.error || 'خطا'));
 }
 
 // ── پیام‌های حذف‌شده ──────────────────────────────────────────────────────
