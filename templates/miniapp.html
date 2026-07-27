@@ -420,12 +420,23 @@
             </div>
         </div>
 
+        <!-- ── تب پنل کامل (همون پنل دکمه‌ای هلپر بات، عیناً) ──────────── -->
+        <div class="tab-panel" id="tab-fullpanel">
+            <div class="card">
+                <div id="fpBreadcrumb" class="hint" style="margin-bottom:8px; display:none;">
+                    <button class="btn btn-outline" style="padding:4px 10px; font-size:12px;" onclick="fpGoMenu()">‹ منوی اصلی</button>
+                </div>
+                <h3 id="fpTitle">📋 پنل کامل</h3>
+                <div id="fpBody"><div class="empty-state">در حال بارگذاری...</div></div>
+            </div>
+        </div>
+
     </div>
 
     <div class="bottomnav">
         <button class="nav-btn active" data-tab="home" onclick="switchTab('home')"><span class="ic">🏠</span>خانه</button>
         <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')"><span class="ic">⚙️</span>تنظیمات</button>
-        <button class="nav-btn" data-tab="tools" onclick="switchTab('tools')"><span class="ic">🔧</span>ابزار</button>
+        <button class="nav-btn" data-tab="fullpanel" onclick="switchTab('fullpanel')"><span class="ic">📋</span>پنل کامل</button>
         <button class="nav-btn" data-tab="lists" onclick="switchTab('lists')"><span class="ic">👥</span>لیست‌ها</button>
         <button class="nav-btn" data-tab="deleted" onclick="switchTab('deleted')"><span class="ic">🗑</span>حذف‌شده‌ها</button>
     </div>
@@ -524,6 +535,119 @@ function switchTab(name) {
     document.getElementById('tab-' + name).classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
     if (name === 'deleted') loadDeleted();
+    if (name === 'fullpanel' && !fpCategories) fpLoadMenu();
+}
+
+// ── پنل کامل (رندر پویا از روی همون PANEL_CATEGORIES بات کمکی) ──────────────
+let fpCategories = null;   // { order, categories }
+let fpCurrentKey = null;   // دسته‌ی باز فعلی (null یعنی منوی اصلی)
+
+const FP_STYLE_CLASS = { primary: 'btn-outline', success: 'btn-green', danger: 'btn-red' };
+
+async function fpLoadMenu() {
+    const body = document.getElementById('fpBody');
+    body.innerHTML = '<div class="empty-state">در حال بارگذاری...</div>';
+    const { data } = await api('/api/panel/categories');
+    if (!data.ok) { body.innerHTML = '<div class="empty-state">خطا در دریافت پنل</div>'; return; }
+    fpCategories = data;
+    fpGoMenu();
+}
+
+function fpGoMenu() {
+    fpCurrentKey = null;
+    document.getElementById('fpBreadcrumb').style.display = 'none';
+    document.getElementById('fpTitle').textContent = '📋 پنل کامل';
+    if (!fpCategories) { fpLoadMenu(); return; }
+    const body = document.getElementById('fpBody');
+    body.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px;';
+    fpCategories.order.forEach(key => {
+        const cat = fpCategories.categories[key];
+        if (!cat) return;
+        const btn = document.createElement('button');
+        btn.className = 'btn ' + (FP_STYLE_CLASS[cat.menu_style] || 'btn-outline');
+        btn.style.cssText = 'flex:1 1 45%; min-width:120px;';
+        btn.textContent = cat.title;
+        btn.onclick = () => fpOpenCategory(key);
+        grid.appendChild(btn);
+    });
+    body.appendChild(grid);
+}
+
+async function fpOpenCategory(key, page) {
+    const cat = fpCategories.categories[key];
+    if (!cat) return;
+
+    if (cat.stub_message) { toast(cat.stub_message); return; }
+
+    // دکمه‌های تک‌عملی که زیرمنو ندارن و مستقیم اجرا می‌شن
+    if (cat.direct_command) {
+        const cmd = cat.direct_command;
+        if (cmd.startsWith('PANELINFO::')) { fpShowInfo(key, cmd.slice('PANELINFO::'.length)); return; }
+        if (cmd.startsWith('INFO::')) { toast(cmd.slice('INFO::'.length)); return; }
+        toast('در حال اجرا: ' + cat.title);
+        await api('/api/panel/execute', { method: 'POST', body: JSON.stringify({ command_text: cmd }) });
+        return;
+    }
+
+    fpCurrentKey = key;
+    document.getElementById('fpBreadcrumb').style.display = 'block';
+    document.getElementById('fpTitle').textContent = cat.title;
+
+    const body = document.getElementById('fpBody');
+    body.innerHTML = '<div class="empty-state">در حال بارگذاری...</div>';
+
+    const { data } = await api('/api/panel/category_commands', {
+        method: 'POST',
+        body: JSON.stringify({ category_key: key }),
+    });
+    if (!data.ok) { body.innerHTML = '<div class="empty-state">خطا</div>'; return; }
+
+    body.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex; flex-direction:column; gap:8px;';
+
+    (data.items || []).forEach(item => {
+        const [, label, cmd, style] = item;
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-block ' + (FP_STYLE_CLASS[style] || 'btn-outline');
+        btn.textContent = label;
+        btn.onclick = () => fpRunItem(key, cmd);
+        wrap.appendChild(btn);
+    });
+
+    (cat.children || []).forEach(([label, childKey]) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-block btn-outline';
+        btn.textContent = label + ' ›';
+        btn.onclick = () => fpOpenCategory(childKey);
+        wrap.appendChild(btn);
+    });
+
+    body.appendChild(wrap);
+}
+
+async function fpRunItem(categoryKey, cmd) {
+    if (cmd.startsWith('PANELINFO::')) { fpShowInfo(categoryKey, cmd.slice('PANELINFO::'.length)); return; }
+    if (cmd.startsWith('INFO::')) { toast(cmd.slice('INFO::'.length)); return; }
+    await api('/api/panel/execute', { method: 'POST', body: JSON.stringify({ command_text: cmd }) });
+    fpOpenCategory(categoryKey); // رفرش برای دیدن رنگ/وضعیت تازه‌ی سوییچ‌ها
+}
+
+function fpShowInfo(categoryKey, text) {
+    const body = document.getElementById('fpBody');
+    body.innerHTML = '';
+    const pre = document.createElement('div');
+    pre.style.cssText = 'white-space:pre-wrap; font-size:13px; line-height:1.9; color:var(--text2);';
+    pre.textContent = text;
+    body.appendChild(pre);
+    const back = document.createElement('button');
+    back.className = 'btn btn-outline btn-block';
+    back.style.marginTop = '12px';
+    back.textContent = '‹ بازگشت';
+    back.onclick = () => fpOpenCategory(categoryKey);
+    body.appendChild(back);
 }
 
 // ── خانه ───────────────────────────────────────────────────────────────────

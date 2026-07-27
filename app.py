@@ -506,7 +506,56 @@ def toggle(key):
     return jsonify({"ok": True, "active": new_state})
 
 
+@app.route("/api/panel/categories", methods=["GET"])
+@login_required
+def panel_categories():
+    """
+    کل ساختار پنل دکمه‌ای هلپر بات (همون PANEL_CATEGORIES که بات کمکی هم
+    استفاده می‌کنه) رو برمی‌گردونه تا مینی‌اپ بتونه دقیقاً همون منوی
+    چندسطحی رو خودش رندر کنه — بدون نیاز به هاردکد کردن دوباره‌ی هر دسته.
+    """
+    from bot import PANEL_CATEGORIES, PANEL_CATEGORY_ORDER
+    return jsonify({
+        "ok": True,
+        "order": PANEL_CATEGORY_ORDER,
+        "categories": PANEL_CATEGORIES,
+    })
+
+
+@app.route("/api/panel/category_commands", methods=["POST"])
+@login_required
+def panel_category_commands():
+    """آیتم‌های سطح ۲ یک دسته (وضعیت روشن/خاموشِ فعلیِ سوییچ‌ها هم توش هست)."""
+    from bot import build_category_commands
+    data = request.get_json(force=True) or {}
+    category_key = data.get("category_key")
+    if not category_key:
+        return jsonify({"ok": False, "error": "category_key لازم است"}), 400
+    items = build_category_commands(owner_id(), category_key)
+    return jsonify({"ok": True, "items": items})
+
+
+@app.route("/api/panel/execute", methods=["POST"])
+@login_required
+def panel_execute():
+    """اجرای همون دستورِ متنیِ متناظر با دکمه‌ی کلیک‌شده، روی کلاینتِ زنده‌ی سلفِ خودِ کاربر."""
+    from bot import _execute_panel_command
+    data = request.get_json(force=True) or {}
+    command_text = data.get("command_text")
+    if not command_text:
+        return jsonify({"ok": False, "error": "command_text لازم است"}), 400
+
+    oid = owner_id()
+    self_client = bot_manager.get_client(oid)
+    if self_client is None:
+        return jsonify({"ok": False, "error": "سلف فعالی برای این کاربر پیدا نشد — اول سلف را روشن کن"}), 404
+
+    run_async(_execute_panel_command(self_client, oid, command_text))
+    return jsonify({"ok": True})
+
+
 @app.route("/api/miniapp/overview", methods=["GET"])
+
 @login_required
 def miniapp_overview():
     import telegram_bot as tb

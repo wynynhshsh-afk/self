@@ -2563,6 +2563,16 @@ async def _handle_command(cl, event, text, owner_id, entry, had_dot=True):
         # اگه فرمت درست نیست → هیچ کاری نکن (بی‌صدا)
     elif text == "توقف اسپم":
         ss("spam_active", "0"); await edit("🛑 اسپم متوقف شد.")
+    elif text.startswith("تاخیر اسپم"):
+        rest = text[len("تاخیر اسپم"):].strip()
+        try:
+            new_delay = float(rest)
+            if new_delay < 0:
+                raise ValueError
+            ss("spam_delay", str(new_delay))
+            await edit(f"⏱ تأخیر اسپم روی {new_delay} ثانیه تنظیم شد.")
+        except ValueError:
+            await edit("❗ فرمت درست نیست. مثال: تاخیر اسپم 2")
 
     # ─── حذف خودکار ──────────────────────────────────────────────────────────
     elif text.startswith("حذف بعد "):
@@ -3625,7 +3635,14 @@ def _help_text():
         ("🔹 اسپم", [
             "اسپم [تعداد] [متن]  ← مثال: اسپم 100 سلام",
             "توقف اسپم",
+            "تاخیر اسپم [ثانیه]  ← مثال: تاخیر اسپم 2",
             "💡 تعداد نامحدود — فرمت باید دقیق باشه",
+        ]),
+        ("🔹 سایلنت", [
+            "سایلنت چت روشن  ← این چت رو نادیده بگیر",
+            "سایلنت چت خاموش",
+            "سایلنت کاربر [آیدی]",
+            "لغو سایلنت کاربر [آیدی]",
         ]),
         ("🔹 پیام", [
             "ذخیره [1-10]  ← ریپلای",
@@ -3835,7 +3852,12 @@ PANEL_CATEGORIES = {
     "spam": {
         "title": "اسپم",
         "menu_style": "primary",
-        "direct_command": "INFO::برای شروع تایپ کن: اسپم [تعداد] [متن] — برای توقف: توقف اسپم",
+        "direct_command": "INFO::برای شروع تایپ کن: اسپم [تعداد] [متن] — برای توقف: توقف اسپم — برای تنظیم تأخیر: تاخیر اسپم [ثانیه]",
+    },
+    "silent_mode": {
+        "title": "سایلنت",
+        "menu_style": "primary",
+        "direct_command": "INFO::سایلنت چت روشن / سایلنت چت خاموش — نادیده‌گرفتن کل این چت\nسایلنت کاربر [آیدی] / لغو سایلنت کاربر [آیدی] — نادیده‌گرفتن یک کاربر خاص",
     },
     "pm_silence": {
         "title": "سکوت",
@@ -3969,6 +3991,7 @@ PANEL_CATEGORIES = {
         ],
         "actions": [
             ("آب و هوا", "INFO::برای استفاده تایپ کن: هوا [نام شهر]"),
+            ("تنظیم ایموجی ری‌اکشن", "INFO::برای تغییر ایموجیِ ری‌اکشن خودکار تایپ کن: ری‌اکشن [ایموجی] — مثال: ری‌اکشن 👍"),
             ("راهنما", "راهنما"),
             ("پاکسازی لیست بلاک", "پاکسازی لیست بلاک"),
             ("ترک همگانی گروه", "ترک همگانی گروه"),
@@ -4055,7 +4078,7 @@ PANEL_CATEGORY_ORDER = [
     "actions", "friend_enemy", "secretary",
     "word_filter", "auto_reply", "forced_join",
     "downloader", "user_react", "spam",
-    "pm_silence", "user_info", "tag_all",
+    "silent_mode", "pm_silence", "user_info", "tag_all",
     "block_user", "delete_msg", "tools",
     "ai_assistant", "translate_tool", "animation",
     "cheat", "calculator", "text_to_voice",
